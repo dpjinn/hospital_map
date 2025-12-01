@@ -97,7 +97,7 @@ if uploaded is None:
     except Exception:
         try:
             # 마지막으로 시도: 제공된 경로(자동)가 있을 수 있음
-            df = pd.read_csv('/mnt/data/23701ec3-7212-4608-9c43-4a9c1d3b6726.csv', encoding='utf-8')
+            df = pd.read_csv('https://github.com/dpjinn/hospital_map/blob/main/%EB%B3%91%EC%9B%90%EB%8D%B0%EC%9D%B4%ED%84%B0.csv', encoding='utf-8')
             st.info('내부 제공 CSV를 불러왔습니다.')
         except Exception:
             st.warning('CSV 파일을 업로드하거나 프로젝트 폴더에 hospitals.csv를 놓아주세요.')
