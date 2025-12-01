@@ -3,7 +3,6 @@ import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
-from geopy.geocoders import Nominatim
 
 CSV_URL = "병원데이터.csv"
 
@@ -28,7 +27,7 @@ day = col2.selectbox("📅 요일 선택", ["전체", "월", "화", "수", "목"
 emergency_only = col3.checkbox("🚨 응급실 운영 병원만 보기", value=False)
 
 # ===============================
-# 검색 로직 (하나라도 입력되면 필터)
+# 검색 조건 최소 1개만 있어도 필터 작동
 # ===============================
 filtered = df.copy()
 
@@ -44,10 +43,10 @@ if emergency_only:
 st.write(f"🔎 검색된 병원 수: **{len(filtered)}개**")
 
 # ===============================
-# 지도 영역 최적화 / 렉 방지
+# 검색 결과가 있을 때만 지도 영역 최적화
 # ===============================
 if len(filtered) > 0:
-    # 지도는 검색된 병원 범위만 표시 → 렉 감소
+    # 검색된 병원 범위 → 지도 자동 확대 (fitBounds)
     bounds = [
         [filtered["위도"].min(), filtered["경도"].min()],
         [filtered["위도"].max(), filtered["경도"].max()],
@@ -85,7 +84,7 @@ else:
 # ===============================
 # 병원 상세 정보 모달
 # ===============================
-if "last_object_clicked" in result and result["last_object_clicked"]:
+if "last_object_clicked" in locals() and result and result.get("last_object_clicked"):
     name = result["last_object_clicked"]["popup"].split("<br>")[0].replace("<b>", "").replace("</b>", "")
     detail = df[df["이름"] == name].iloc[0]
 
@@ -94,7 +93,7 @@ if "last_object_clicked" in result and result["last_object_clicked"]:
         st.write(f"• 📍 주소: {detail['주소']}")
         st.write(f"• 📞 전화번호: {detail['전화번호']}")
         st.write("• ⏱ 영업 요일:")
-        st.dataframe(detail[["월", "화", "수", "목", "금", "토", "일", "공휴일"]].T)
+        st.dataframe(detail[["월","화","수","목","금","토","일","공휴일"]].T)
 
         if detail["응급실"] == "Y":
             st.success("🚨 응급실 운영 병원입니다.")
