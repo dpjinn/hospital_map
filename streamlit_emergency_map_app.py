@@ -27,9 +27,6 @@ with col2:
 # ===== 검색 필터 적용 =====
 mask = pd.Series(False, index=df.index)
 
-if region != "전체":
-    mask |= df["주소"].str.contains(region, na=False)
-
 if search_name:
     mask |= df["이름"].str.contains(search_name, na=False)
 
