@@ -14,7 +14,7 @@ def load_data(url):
     return df
 
 # GitHub raw URL — CSV 파일 경로
-CSV_URL = "https://raw.githubusercontent.com/dpjinn/hospital_map/main/병원데이터.csv"
+CSV_URL = "https://github.com/dpjinn/hospital_map/blob/main/%EB%B3%91%EC%9B%90%EB%8D%B0%EC%9D%B4%ED%84%B0.csv"
 
 df = load_data(CSV_URL)
 
