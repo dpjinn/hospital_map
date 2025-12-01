@@ -67,26 +67,37 @@ m = folium.Map(location=center, zoom_start=11)
 cluster = MarkerCluster().add_to(m)
 
 for _, row in filtered.iterrows():
-    popup_html = (
-        f"""
+
+    # 진료과목 안전 처리
+    dept_name = row["진료과목"] if pd.notna(row["진료과목"]) else "기타"
+    dept_color = color_map.get(dept_name, "#666666")
+
+    # 진료과목 있는 경우만 표시
+    dept_display = f"""
+    🩺 <span style="color:{dept_color}; font-weight:bold;">
+    {dept_name}
+    </span><br>
+    """ if dept_name != "기타" else ""
+
+    popup_html = f"""
         <b>{row['이름']}</b><br>
         📍 {row['주소']}<br>
         📞 {row['전화번호']}<br>
-        🩺 <span style="color:{color_map[row['진료과목']]}; font-weight:bold;">
-        {row['진료과목']}
-        </span><br>
+        {dept_display}
         <button onclick="parent.postMessage({{'event':'modal','id':'{row['이름']}'}}, '*');">
             상세 정보 보기
         </button>
-        """
-    )
+    """
+
     folium.CircleMarker(
         location=[row["위도"], row["경도"]],
         radius=6,
-        color=color_map[row["진료과목"]],
-        fill=True, fill_color=color_map[row["진료과목"]],
+        color=dept_color,
+        fill=True,
+        fill_color=dept_color,
         popup=folium.Popup(popup_html, max_width=300)
     ).add_to(cluster)
+
 
 # 범례 박스
 legend_html = """
