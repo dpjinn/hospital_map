@@ -24,19 +24,25 @@ search_addr = st.text_input("📌 주소/지역 검색")
 filtered = df.copy()
 
 # ===== OR 조건 검색 지원 =====
-mask = pd.Series([False] * len(df))
+filtered = df.copy()
+
+mask = pd.Series(False, index=df.index)  # 인덱스 일치 필수!
 
 if region != "전체":
-    mask |= df["주소"].str.contains(region)
+    mask |= df["주소"].str.contains(region, na=False)
 
 if search_name:
-    mask |= df["이름"].str.contains(search_name)
+    mask |= df["이름"].str.contains(search_name, na=False)
 
 if search_addr:
-    mask |= df["주소"].str.contains(search_addr)
+    mask |= df["주소"].str.contains(search_addr, na=False)
 
 if mask.any():
     filtered = df[mask]
+else:
+    st.warning("검색 결과가 없습니다. 가장 가까운 응급실을 안내합니다.")
+    filtered = df[df["응급실"].notna()]
+
 
 # ===== 지도 중심 자동 이동 =====
 if not filtered.empty:
