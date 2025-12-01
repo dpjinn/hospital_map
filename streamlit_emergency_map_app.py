@@ -1,69 +1,115 @@
 import streamlit as st
 import pandas as pd
 import folium
+from folium.plugins import FastMarkerCluster
 from streamlit_folium import st_folium
 
-# ====== 데이터 로드 ======
-@st.cache_data(show_spinner=False)
+CSV_URL = "병원데이터.csv"
+
+@st.cache_data
 def load_data():
-    df = pd.read_csv("병원데이터.csv")  # hospital_name, address, lat, lon, subjects 등 포함
+    df = pd.read_csv(CSV_URL)
+
+    # 컬럼명 보호 처리
+    # '이름' 컬럼이 없으면 병원명 관련 컬럼 자동 매핑
+    if "이름" not in df.columns:
+        name_col = [c for c in df.columns if "병원" in c or "명" in c]
+        if name_col:
+            df.rename(columns={name_col[0]: "이름"}, inplace=True)
+        else:
+            df["이름"] = "이름 미상"
+
+    # 결측치 처리
+    df.dropna(subset=["위도", "경도"], inplace=True)
+    df["주소"] = df["주소"].fillna("")
+    df["응급실"] = df["응급실"].fillna("정보 없음")
+    df["전화번호"] = df.get("전화번호", "").fillna("정보 없음")
+    df["URL"] = df.get("URL", "").fillna("제공되지 않음")
+
     return df
+
 
 df = load_data()
 
-st.title("응급 병원 지도 검색 시스템 🏥")
+st.title("🏥 전국 병원 지도 서비스")
+st.caption("지역/병원명/주소를 검색하면 해당 병원이 지도에 표시됩니다.")
 
-# ===== 검색 UI =====
-st.subheader("🔍 병원 검색 필터")
+# ------------------------
+# 🔍 검색 UI 구성
+# ------------------------
+region = st.selectbox("📍 지역 선택", ["전체"] + sorted(df["주소"].str[:2].unique()))
+search_name = st.text_input("🔍 병원명 검색")
+search_addr = st.text_input("📌 주소 검색")
 
-col1, col2 = st.columns(2)
+# ------------------------
+# 🔎 필터링 마스크 생성 (조건 하나만 있어도 검색되도록)
+# ------------------------
+mask = pd.Series(True, index=df.index)
 
-with col1:
-    name_query = st.text_input("병원명으로 검색", placeholder="예: 강남세브란스")
-
-with col2:
-    address_query = st.text_input("주소로 검색", placeholder="예: 서울특별시, 부산광역시 등")
-
-# ===== 검색 필터 적용 =====
-mask = pd.Series(False, index=df.index)
+if region != "전체":
+    mask &= df["주소"].str.contains(region, na=False)
 
 if search_name:
-    mask |= df["이름"].str.contains(search_name, na=False)
+    mask &= df["이름"].str.contains(search_name, case=False, na=False)
 
 if search_addr:
-    mask |= df["주소"].str.contains(search_addr, na=False)
+    mask &= df["주소"].str.contains(search_addr, case=False, na=False)
 
-if mask.any():
-    filtered = df[mask]
-else:
-    st.warning("검색 결과가 없습니다. 가장 가까운 응급실을 표시합니다.")
+# 필터 후 데이터 결정
+if df[mask].empty:
+    st.warning("검색 결과가 없습니다. 응급실 운영 병원 목록을 표시합니다.")
     filtered = df[df["응급실"] != "정보 없음"]
-
-
-st.write(f"검색 결과: {len(filtered)}개 병원")
-
-# ===== 지도 중심점 설정 =====
-if len(filtered) > 0:
-    center_lat = filtered["위도"].mean()
-    center_lon = filtered["경도"].mean()
 else:
-    center_lat, center_lon = 37.5665, 126.9780  # 서울시청 좌표 fallback
+    filtered = df[mask]
 
-# ===== 지도 생성 =====
-m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+# ------------------------
+# 🗺 지도 생성 및 마커 표시
+# ------------------------
+center = [filtered["위도"].mean(), filtered["경도"].mean()]
+m = folium.Map(location=center, zoom_start=13)
 
+markers = []
 for idx, row in filtered.iterrows():
     popup_html = f"""
-<b>{row['name']}</b><br>
-📍 {row['address']}<br>
-🏥 진료과목: {row['subjects']}<br>
-"""
-folium.Marker(
-    location=[row["lat"], row["lng"]],
-    tooltip=row["name"],
-    popup=folium.Popup(popup_html, max_width=280)
-).add_to(m)
+    <b>{row['이름']}</b><br>
+    📍 {row['주소']}<br>
+    ☎ {row['전화번호']}<br>
+    🚑 응급실: {row['응급실']}
+    <br><button onclick="window.parent.postMessage({{'hospital_id': {idx}}}, '*')">상세 보기</button>
+    """
+    markers.append([row["위도"], row["경도"], popup_html])
 
+FastMarkerCluster(markers).add_to(m)
 
-st.subheader("🗺 병원 지도")
-st_folium(m, width=900, height=600)
+map_data = st_folium(m, width=1000, height=680, returned_objects=[])
+
+# ------------------------
+# 📋 검색 결과 리스트
+# ------------------------
+st.subheader("📋 검색 결과 목록")
+for idx, row in filtered.iterrows():
+    if st.button(row["이름"], key=f"btn_{idx}"):
+        st.session_state["selected_hospital"] = idx
+
+# ------------------------
+# 🪟 상세 정보 모달
+# ------------------------
+if "selected_hospital" in st.session_state:
+    row = df.loc[st.session_state["selected_hospital"]]
+    with st.modal(f"🏥 {row['이름']} 상세 정보"):
+        st.markdown(f"""
+### **{row['이름']}**
+
+📍 **주소**  
+`{row['주소']}`
+
+📞 **연락처**  
+`{row['전화번호']}`
+
+🚑 **응급실 운영 여부**  
+`{row['응급실']}`
+
+🌐 **홈페이지**  
+{row['URL']}
+        """)
+        st.button("닫기", on_click=lambda: st.session_state.pop("selected_hospital"))
