@@ -1,0 +1,26 @@
+
+---
+
+## 3️⃣ .gitignore
+
+```gitignore
+# Byte-compiled / Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CSV or data backups
+*.bak
+*.tmp
