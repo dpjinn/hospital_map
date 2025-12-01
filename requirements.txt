@@ -1,5 +1,4 @@
 streamlit
 pandas
-pydeck
-numpy
-geopy
+folium
+streamlit-folium
