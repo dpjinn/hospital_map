@@ -28,12 +28,13 @@ with col2:
 mask = pd.Series([True] * len(df))
 
 if name_query:
-    mask &= df["병원명"].str.contains(name_query, case=False, na=False)
+    mask &= df["name"].str.contains(name_query, case=False, na=False)
 
 if address_query:
-    mask &= df["주소"].str.contains(address_query, case=False, na=False)
+    mask &= df["address"].str.contains(address_query, case=False, na=False)
 
 filtered = df[mask]
+
 
 st.write(f"검색 결과: {len(filtered)}개 병원")
 
@@ -49,18 +50,16 @@ m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
 
 for idx, row in filtered.iterrows():
     popup_html = f"""
-    <b>{row['병원명']}</b><br>
-    📍 {row['주소']}<br>
-    🏥 진료과목: {row['진료과목']}<br>
-    <a href='https://map.naver.com/p/search/{row['병원명']}' target='_blank'>
-      네이버지도에서 보기
-    </a>
-    """
-    folium.Marker(
-        location=[row["위도"], row["경도"]],
-        tooltip=row["병원명"],
-        popup=folium.Popup(popup_html, max_width=280)
-    ).add_to(m)
+<b>{row['name']}</b><br>
+📍 {row['address']}<br>
+🏥 진료과목: {row['subjects']}<br>
+"""
+folium.Marker(
+    location=[row["lat"], row["lng"]],
+    tooltip=row["name"],
+    popup=folium.Popup(popup_html, max_width=280)
+).add_to(m)
+
 
 st.subheader("🗺 병원 지도")
 st_folium(m, width=900, height=600)
