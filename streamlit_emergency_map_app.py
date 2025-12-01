@@ -1,56 +1,66 @@
 import streamlit as st
 import pandas as pd
 import folium
-from folium.plugins import FastMarkerCluster
 from streamlit_folium import st_folium
 
-CSV_URL = "병원데이터.csv"
-
-@st.cache_data
+# ====== 데이터 로드 ======
+@st.cache_data(show_spinner=False)
 def load_data():
-    df = pd.read_csv(CSV_URL)
-    df.dropna(subset=["위도", "경도"], inplace=True)
-    df["응급실"] = df["응급실"].fillna("정보 없음")
+    df = pd.read_csv("병원데이터.csv")  # hospital_name, address, lat, lon, subjects 등 포함
     return df
 
 df = load_data()
 
-st.title("🏥 전국 병원 지도 서비스")
-st.caption("병원을 클릭하면 상세 정보를 표시합니다.")
+st.title("응급 병원 지도 검색 시스템 🏥")
 
-region = st.selectbox("📍 지역 선택", ["전체"] + sorted(df["주소"].str[:2].unique()))
-search = st.text_input("🔍 병원명 또는 주소 검색")
+# ===== 검색 UI =====
+st.subheader("🔍 병원 검색 필터")
 
-mask = pd.Series(False, index=df.index)
-if region != "전체": mask |= df["주소"].str.contains(region, na=False)
-if search: mask |= df["이름"].str.contains(search, na=False) | df["주소"].str.contains(search, na=False)
+col1, col2 = st.columns(2)
 
-filtered = df[mask] if mask.any() else df
+with col1:
+    name_query = st.text_input("병원명으로 검색", placeholder="예: 강남세브란스")
 
-center = [filtered["위도"].mean(), filtered["경도"].mean()]
-m = folium.Map(location=center, zoom_start=12, tiles="cartodbpositron")
+with col2:
+    address_query = st.text_input("주소로 검색", placeholder="예: 서울특별시, 부산광역시 등")
 
-# 마커에 팝업 대신 클릭 이벤트용 데이터만 저장
-data = list(zip(filtered["위도"], filtered["경도"], filtered.index.tolist()))
-FastMarkerCluster(data=data).add_to(m)
+# ===== 검색 필터 적용 =====
+mask = pd.Series([True] * len(df))
 
-clicked = st_folium(m, height=720, width=1000)
+if name_query:
+    mask &= df["병원명"].str.contains(name_query, case=False, na=False)
 
-# folium 클릭된 마커 처리
-if clicked and clicked.get("last_object_clicked_tooltip"):
-    idx = int(clicked["last_object_clicked_tooltip"])
-    st.session_state["selected"] = idx
+if address_query:
+    mask &= df["주소"].str.contains(address_query, case=False, na=False)
 
-# 상세 모달
-if "selected" in st.session_state:
-    row = df.loc[st.session_state["selected"]]
-    with st.modal(f"🏥 {row['이름']} 정보"):
-        st.markdown(f"""
-### **{row['이름']}**
-📍 `{row['주소']}`  
-☎ `{row['전화번호']}`  
-🚑 응급실: `{row['응급실']}`  
+filtered = df[mask]
 
-[🌐 홈페이지 이동]({row['URL']})  
-        """)
-        st.button("닫기", on_click=lambda: st.session_state.pop("selected"))
+st.write(f"검색 결과: {len(filtered)}개 병원")
+
+# ===== 지도 중심점 설정 =====
+if len(filtered) > 0:
+    center_lat = filtered["위도"].mean()
+    center_lon = filtered["경도"].mean()
+else:
+    center_lat, center_lon = 37.5665, 126.9780  # 서울시청 좌표 fallback
+
+# ===== 지도 생성 =====
+m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+
+for idx, row in filtered.iterrows():
+    popup_html = f"""
+    <b>{row['병원명']}</b><br>
+    📍 {row['주소']}<br>
+    🏥 진료과목: {row['진료과목']}<br>
+    <a href='https://map.naver.com/p/search/{row['병원명']}' target='_blank'>
+      네이버지도에서 보기
+    </a>
+    """
+    folium.Marker(
+        location=[row["위도"], row["경도"]],
+        tooltip=row["병원명"],
+        popup=folium.Popup(popup_html, max_width=280)
+    ).add_to(m)
+
+st.subheader("🗺 병원 지도")
+st_folium(m, width=900, height=600)
