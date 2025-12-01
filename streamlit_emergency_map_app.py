@@ -14,7 +14,7 @@ from functools import lru_cache
 st.set_page_config(page_title="응급실/병원 지도 (컬러/검색 강화)", layout="wide")
 
 # -------------------- 설정: GitHub raw CSV URL --------------------
-CSV_URL = "https://raw.githubusercontent.com/dpjinn/hospital_map/main/병원데이터.csv"
+CSV_URL = "병원데이터.csv"
 
 # -------------------- 유틸: 컬럼 자동 감지 --------------------
 def detect_columns(df):
