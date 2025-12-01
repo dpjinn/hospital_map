@@ -25,15 +25,22 @@ with col2:
     address_query = st.text_input("주소로 검색", placeholder="예: 서울특별시, 부산광역시 등")
 
 # ===== 검색 필터 적용 =====
-mask = pd.Series([True] * len(df))
+mask = pd.Series(False, index=df.index)
 
-if name_query:
-    mask &= df["name"].str.contains(name_query, case=False, na=False)
+if region != "전체":
+    mask |= df["주소"].str.contains(region, na=False)
 
-if address_query:
-    mask &= df["address"].str.contains(address_query, case=False, na=False)
+if search_name:
+    mask |= df["이름"].str.contains(search_name, na=False)
 
-filtered = df[mask]
+if search_addr:
+    mask |= df["주소"].str.contains(search_addr, na=False)
+
+if mask.any():
+    filtered = df[mask]
+else:
+    st.warning("검색 결과가 없습니다. 가장 가까운 응급실을 표시합니다.")
+    filtered = df[df["응급실"] != "정보 없음"]
 
 
 st.write(f"검색 결과: {len(filtered)}개 병원")
