@@ -92,7 +92,7 @@ uploaded = st.file_uploader('CSV 파일을 업로드하세요 (병원 정보 CSV
 if uploaded is None:
     # try to load hospitals.csv from same folder
     try:
-        df = pd.read_csv('hospitals.csv', encoding='utf-8')
+        df = pd.read_csv('병원데이터.csv', encoding='utf-8')
         st.info('로컬 파일 hospitals.csv를 불러왔습니다.')
     except Exception:
         try:
